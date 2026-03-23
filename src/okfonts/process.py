@@ -49,7 +49,7 @@ def _scale_glyphs(font: TTFont, scale: float) -> None:
     if glyf is None:
         return
 
-    for glyph_name in glyf:
+    for glyph_name in glyf.keys():  # noqa: SIM118
         glyph = glyf[glyph_name]
 
         if glyph.numberOfContours > 0:
