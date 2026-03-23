@@ -1,5 +1,4 @@
 from fontTools.ttLib import TTFont
-from fontTools.ttLib.scaleUpem import scale_upem
 
 
 def get_cap_height(font: TTFont) -> int:
@@ -20,24 +19,21 @@ def process(font: TTFont) -> None:
     """
     cap_height = get_cap_height(font)
 
-    new_upm = 1000
-    # Scale glyphs so that cap height becomes new_upm
-    old_upm = font["head"].unitsPerEm
-    scale_upem(font, round(old_upm * new_upm / cap_height))
-    font["head"].unitsPerEm = new_upm
+    # Set UPM to cap height. Glyph coordinates stay unchanged —
+    # this just redefines what "1 em" means relative to the glyphs.
+    font["head"].unitsPerEm = cap_height
 
     # Set vertical metrics
     os2 = font["OS/2"]
     hhea = font["hhea"]
 
-    os2.sCapHeight = new_upm
-    os2.sTypoAscender = new_upm
+    os2.sTypoAscender = cap_height
     os2.sTypoDescender = 0
     os2.sTypoLineGap = 0
-    os2.usWinAscent = new_upm
+    os2.usWinAscent = cap_height
     os2.usWinDescent = 0
 
-    hhea.ascent = new_upm
+    hhea.ascent = cap_height
     hhea.descent = 0
     hhea.lineGap = 0
 
