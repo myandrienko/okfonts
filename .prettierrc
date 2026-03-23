@@ -1,0 +1,10 @@
+{
+  "overrides": [
+    {
+      "files": ["CLAUDE.md"],
+      "options": {
+        "proseWrap": "never"
+      }
+    }
+  ]
+}

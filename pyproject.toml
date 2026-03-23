@@ -1,0 +1,26 @@
+[project]
+name = "okfonts"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fonttools>=4.62.1",
+]
+
+[project.scripts]
+okfonts = "okfonts.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.7.2,<1"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.7",
+]
+
+[tool.ruff]
+src = ["src"]
+
+[tool.ruff.lint]
+extend-select = ["I", "N", "UP", "B", "A", "SIM", "RUF"]
