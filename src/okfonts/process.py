@@ -1,4 +1,5 @@
 from fontTools.ttLib import TTFont
+from fontTools.ttLib.scaleUpem import scale_upem
 
 
 def get_cap_height(font: TTFont) -> int:
@@ -18,56 +19,27 @@ def process(font: TTFont) -> None:
     - Capitals are vertically centered within their lines
     """
     cap_height = get_cap_height(font)
-    old_upm = font["head"].unitsPerEm
-    scale = cap_height / old_upm
 
-    # Scale all glyphs to the new UPM
-    font["head"].unitsPerEm = cap_height
-    _scale_glyphs(font, scale)
+    new_upm = 1000
+    # Scale glyphs so that cap height becomes new_upm
+    old_upm = font["head"].unitsPerEm
+    scale_upem(font, round(old_upm * new_upm / cap_height))
+    font["head"].unitsPerEm = new_upm
 
     # Set vertical metrics
     os2 = font["OS/2"]
     hhea = font["hhea"]
 
-    os2.sTypoAscender = cap_height
+    os2.sCapHeight = new_upm
+    os2.sTypoAscender = new_upm
     os2.sTypoDescender = 0
     os2.sTypoLineGap = 0
-    os2.usWinAscent = cap_height
+    os2.usWinAscent = new_upm
     os2.usWinDescent = 0
-    os2.sCapHeight = cap_height
 
-    hhea.ascent = cap_height
+    hhea.ascent = new_upm
     hhea.descent = 0
     hhea.lineGap = 0
 
     # Ensure OS/2 fsSelection bit 7 (USE_TYPO_METRICS) is set
     os2.fsSelection |= 1 << 7
-
-
-def _scale_glyphs(font: TTFont, scale: float) -> None:
-    glyf = font.get("glyf")
-    if glyf is None:
-        return
-
-    for glyph_name in glyf.keys():  # noqa: SIM118
-        glyph = glyf[glyph_name]
-
-        if glyph.numberOfContours > 0:
-            coords = glyph.coordinates
-            glyph.coordinates = type(coords)(
-                [(round(x * scale), round(y * scale)) for x, y in coords]
-            )
-        elif glyph.isComposite():
-            for component in glyph.components:
-                # Scale translation offsets in composite glyphs
-                component.x = round(component.x * scale)
-                component.y = round(component.y * scale)
-
-        if hasattr(glyph, "xMin") and glyph.numberOfContours != 0:
-            glyph.recalcBounds(glyf)
-
-    # Scale horizontal metrics
-    hmtx = font["hmtx"]
-    for glyph_name in hmtx.metrics:
-        width, lsb = hmtx.metrics[glyph_name]
-        hmtx.metrics[glyph_name] = (round(width * scale), round(lsb * scale))
