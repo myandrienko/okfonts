@@ -1,0 +1,13 @@
+# flyctl launch added from .gitignore
+**/__pycache__
+**/.venv
+**/.ruff_cache
+**/.claude/settings.local.json
+
+# flyctl launch added from .ruff_cache/.gitignore
+# Automatically created by ruff.
+.ruff_cache/**/*
+
+# flyctl launch added from .venv/.gitignore
+.venv/**/*
+fly.toml
