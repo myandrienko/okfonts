@@ -1,9 +1,11 @@
 import argparse
+import copy
 import sys
 
 from fontTools.ttLib import TTFont
 
 from okfonts import process
+from okfonts.diagram import draw_before_after
 
 
 def main():
@@ -21,7 +23,12 @@ def main():
     except Exception as e:
         sys.exit(f"Error: could not load font: {e}")
 
+    before = copy.deepcopy(font)
     process(font)
+
+    print()
+    print(draw_before_after(before, font))
+    print()
 
     try:
         font.save(args.output)
