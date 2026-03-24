@@ -1,3 +1,4 @@
+from base64 import b64encode
 from pathlib import Path
 
 import pytest
@@ -97,7 +98,43 @@ def test_screenshot(font_path, browser, tmp_path):
         reference.write_bytes(actual)
         pytest.fail(f"Reference created: {reference.name}. Re-run to verify.")
 
-    assert actual == reference.read_bytes(), (
-        f"Screenshot mismatch for {font_path.stem}. "
-        f"Delete {reference} and re-run to update."
-    )
+    expected = reference.read_bytes()
+    if actual != expected:
+        report = _failure_report(expected, actual)
+        report_path = SCREENSHOTS / f"{font_path.stem}-failure.html"
+        report_path.write_text(report)
+        pytest.fail(
+            f"Screenshot mismatch for {font_path.stem}. "
+            f"Report: {report_path}"
+        )
+
+
+def _failure_report(expected: bytes, actual: bytes) -> str:
+    ref_b64 = b64encode(expected).decode()
+    act_b64 = b64encode(actual).decode()
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+<style>
+* {{ margin: 0; box-sizing: border-box; }}
+body {{ font-family: system-ui; padding: 24px; background: #f5f5f5; }}
+h3 {{ margin-bottom: 8px; font-size: 13px; color: #666; }}
+.pair {{ display: flex; gap: 24px; margin-bottom: 24px; }}
+.pair img {{ border: 1px solid #ccc; background: #fff; }}
+.overlay {{ position: relative; display: inline-block; }}
+.overlay img {{ display: block; border: 1px solid #ccc; }}
+.overlay img:last-child {{ position: absolute; top: 0; left: 0; mix-blend-mode: difference; }}
+</style>
+</head>
+<body>
+<div class="pair">
+  <div><h3>Reference</h3><img src="data:image/png;base64,{ref_b64}"></div>
+  <div><h3>Actual</h3><img src="data:image/png;base64,{act_b64}"></div>
+</div>
+<h3>Overlay (difference)</h3>
+<div class="overlay">
+  <img src="data:image/png;base64,{ref_b64}">
+  <img src="data:image/png;base64,{act_b64}">
+</div>
+</body>
+</html>"""
