@@ -1,6 +1,7 @@
 [project]
 name = "okfonts"
-version = "0.1.0"
+version = "0.1.1"
+readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "brotli>=1.2.0",
@@ -25,6 +26,13 @@ build-backend = "uv_build"
 dev = [
     "ruff>=0.15.7",
 ]
+test = [
+    "pytest>=8.0",
+    "playwright>=1.50",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 src = ["src"]
