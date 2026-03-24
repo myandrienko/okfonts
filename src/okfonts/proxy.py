@@ -1,5 +1,6 @@
 import hashlib
 import io
+import logging
 import os
 import re
 from pathlib import Path
@@ -15,8 +16,11 @@ from starlette.routing import Route
 
 from okfonts import process
 
+log = logging.getLogger("okfonts")
+
 GOOGLE_FONTS_CSS = "https://fonts.googleapis.com"
 FONT_URL_RE = re.compile(r"url\((https://fonts\.gstatic\.com/[^)]+)\)")
+SAFE_FILENAME_RE = re.compile(r"^[a-f0-9]+\.woff2$")
 USER_AGENT = (
     "OkFonts/0.1 (https://github.com/myandrienko/okfonts) "
     "Mozilla/5.0 (X11; Linux x86_64) "
@@ -59,7 +63,11 @@ def rewrite_css(css: str) -> str:
 
         if not cached.exists():
             data = fetch_url(url)
-            process_font(data, cached)
+            try:
+                process_font(data, cached)
+            except Exception:
+                log.exception("Failed to process font: %s", url)
+                continue
 
         css = css.replace(url, f"/v1/font/{filename}")
 
@@ -96,6 +104,10 @@ async def serve_css(request: StarletteRequest) -> Response:
 
 async def serve_font(request: StarletteRequest) -> Response:
     filename = request.path_params["filename"]
+
+    if not SAFE_FILENAME_RE.match(filename):
+        return PlainTextResponse("Not found", status_code=404)
+
     path = get_cache_dir() / filename
 
     if not path.exists():
@@ -121,6 +133,6 @@ app = Starlette(
 
 def main():
     port = int(os.environ.get("PORT", "3000"))
-    print("OkFonts: Making web typography tolerable.")
-    print(f"Cache directory: {get_cache_dir().resolve()}")
+    log.info("OkFonts: Making web typography tolerable.")
+    log.info("Cache directory: %s", get_cache_dir().resolve())
     uvicorn.run(app, host="0.0.0.0", port=port)
