@@ -63,7 +63,7 @@ def rewrite_css(css: str) -> str:
 
         css = css.replace(url, f"/v1/font/{filename}")
 
-    return css
+    return "/* OkFonts: Making web typography tolerable. */\n" + css
 
 
 async def serve_css(request: StarletteRequest) -> Response:
@@ -121,5 +121,6 @@ app = Starlette(
 
 def main():
     port = int(os.environ.get("PORT", "3000"))
+    print("OkFonts: Making web typography tolerable.")
     print(f"Cache directory: {get_cache_dir().resolve()}")
     uvicorn.run(app, host="0.0.0.0", port=port)
