@@ -21,6 +21,14 @@ With these changes, the following becomes true:
 
 Supports TTF and WOFF2.
 
+## Tests
+
+Screenshot tests using Playwright. Each fixture font is rendered in a browser with both original and processed variants, then compared byte-for-byte against reference PNGs in `tests/screenshots/`.
+
+To regenerate references: delete `tests/screenshots/*.png` and run tests twice (first run creates them, second verifies). On failure, an HTML report with a diff overlay is generated alongside the reference.
+
+Run: `uv run --group test pytest`
+
 ## CLI
 
 Usage:
