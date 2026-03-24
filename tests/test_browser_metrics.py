@@ -9,6 +9,8 @@ from okfonts import process
 FIXTURES = Path(__file__).parent / "fixtures"
 SCREENSHOTS = Path(__file__).parent / "screenshots"
 FONT_SIZE = 100
+LINE_HEIGHT = 1.4
+HALF_LEADING = int(FONT_SIZE * (LINE_HEIGHT - 1) / 2)
 
 FONTS = sorted(FIXTURES.glob("*.woff2"))
 
@@ -31,12 +33,30 @@ body {{
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  gap: 16px;
+  gap: 40px;
 }}
 .sample {{
   font-size: {FONT_SIZE}px;
   line-height: 1;
   background: #eef2ff;
+  box-shadow: inset 0 0 0 1px #4f6df5;
+  white-space: nowrap;
+}}
+.sample-leading {{
+  font-size: {FONT_SIZE}px;
+  line-height: {LINE_HEIGHT};
+  background:
+    linear-gradient(
+      transparent {HALF_LEADING}px,
+      #4f6df5 {HALF_LEADING}px,
+      #4f6df5 {HALF_LEADING + 1}px,
+      transparent {HALF_LEADING + 1}px,
+      transparent calc(100% - {HALF_LEADING + 1}px),
+      #4f6df5 calc(100% - {HALF_LEADING + 1}px),
+      #4f6df5 calc(100% - {HALF_LEADING}px),
+      transparent calc(100% - {HALF_LEADING}px)
+    ),
+    #eef2ff;
   box-shadow: inset 0 0 0 1px #4f6df5;
   white-space: nowrap;
 }}
@@ -53,6 +73,7 @@ body {{
 <body>
   <span class="sample" style="font-family: 'Original'">Hourglass</span>
   <span class="sample" style="font-family: 'Processed'">Hourglass</span>
+  <span class="sample-leading" style="font-family: 'Processed'">Hourglass</span>
   <div class="ruler"></div>
 </body>
 </html>"""
