@@ -1,101 +1,140 @@
+from base64 import b64encode
+from pathlib import Path
+
 import pytest
-from conftest import FONT_SIZE, SCREENSHOTS
+from fontTools.ttLib import TTFont
+
+from okfonts import process
+
+FIXTURES = Path(__file__).parent / "fixtures"
+SCREENSHOTS = Path(__file__).parent / "screenshots"
+FONT_SIZE = 100
+
+FONTS = sorted(FIXTURES.glob("*.woff2"))
+
+HTML = f"""<!DOCTYPE html>
+<html>
+<head>
+<style>
+@font-face {{
+  font-family: 'Original';
+  src: url('/original.woff2') format('woff2');
+}}
+@font-face {{
+  font-family: 'Processed';
+  src: url('/processed.woff2') format('woff2');
+}}
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 16px;
+}}
+.sample {{
+  font-size: {FONT_SIZE}px;
+  line-height: 1;
+  background: #eef2ff;
+  box-shadow: inset 0 0 0 1px #4f6df5;
+  white-space: nowrap;
+}}
+.ruler {{
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: {FONT_SIZE}px;
+  height: 4px;
+  background: #4f6df5;
+}}
+</style>
+</head>
+<body>
+  <span class="sample" style="font-family: 'Original'">Hourglass</span>
+  <span class="sample" style="font-family: 'Processed'">Hourglass</span>
+  <div class="ruler"></div>
+</body>
+</html>"""
 
 
-def load_page(page, text):
-    page.goto("http://test/index.html")
-    page.evaluate(
-        "text => { document.getElementById('target').textContent = text }", text
+@pytest.mark.parametrize("font_path", FONTS, ids=lambda p: p.stem)
+def test_screenshot(font_path, browser, tmp_path):
+    tt = TTFont(font_path)
+    process(tt)
+    processed_path = tmp_path / font_path.name
+    tt.save(str(processed_path))
+
+    context = browser.new_context(
+        device_scale_factor=1,
+        viewport={"width": 800, "height": 600},
     )
+    page = context.new_page()
+    page.route(
+        "**/index.html",
+        lambda route: route.fulfill(body=HTML, content_type="text/html"),
+    )
+    orig = str(font_path)
+    proc = str(processed_path)
+    page.route(
+        "**/original.woff2",
+        lambda route: route.fulfill(path=orig, content_type="font/woff2"),
+    )
+    page.route(
+        "**/processed.woff2",
+        lambda route: route.fulfill(path=proc, content_type="font/woff2"),
+    )
+
+    page.goto("http://test/index.html")
     page.evaluate("() => document.fonts.ready")
 
+    actual = page.screenshot()
+    page.close()
+    context.close()
 
-def test_screenshot(page, font):
-    """Render a sample word for visual inspection."""
-    load_page(page, "Hourglass")
-    SCREENSHOTS.mkdir(exist_ok=True)
-    label = "processed" if font.processed else "original"
-    page.screenshot(path=str(SCREENSHOTS / f"{font.path.stem}-{label}.png"))
+    reference = SCREENSHOTS / f"{font_path.stem}.png"
+    if not reference.exists():
+        SCREENSHOTS.mkdir(exist_ok=True)
+        reference.write_bytes(actual)
+        pytest.fail(f"Reference created: {reference.name}. Re-run to verify.")
 
-
-def test_cap_height_equals_font_size(page, font):
-    """font-size: Npx should make capitals exactly N pixels high."""
-    if not font.processed:
-        pytest.xfail("unprocessed font: cap height != font-size")
-
-    load_page(page, "H")
-
-    ink_height = page.evaluate("""() => {
-        const el = document.getElementById('target');
-        const style = getComputedStyle(el);
-        const size = 300;
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-        ctx.font = style.font;
-        ctx.fillStyle = 'black';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText('H', 10, 200);
-        const data = ctx.getImageData(0, 0, size, size).data;
-        let top = size, bottom = 0;
-        for (let y = 0; y < size; y++) {
-            for (let x = 0; x < size; x++) {
-                if (data[(y * size + x) * 4 + 3] > 0) {
-                    top = Math.min(top, y);
-                    bottom = Math.max(bottom, y);
-                }
-            }
-        }
-        return bottom - top + 1;
-    }""")
-
-    assert abs(ink_height - FONT_SIZE) <= 1, (
-        f"expected ~{FONT_SIZE}px, got {ink_height}px"
-    )
+    expected = reference.read_bytes()
+    if actual != expected:
+        report = _failure_report(expected, actual)
+        report_path = SCREENSHOTS / f"{font_path.stem}-failure.html"
+        report_path.write_text(report)
+        pytest.fail(
+            f"Screenshot mismatch for {font_path.stem}. "
+            f"Report: {report_path}"
+        )
 
 
-def test_line_height_equals_font_size(page, font):
-    """line-height: 1 should make single-line element exactly N pixels high."""
-    if not font.processed:
-        pytest.xfail("unprocessed font: line height != font-size")
-
-    load_page(page, "Discotheque")
-
-    height = page.evaluate("""() => {
-        return document.getElementById('target').getBoundingClientRect().height;
-    }""")
-
-    assert height == FONT_SIZE, f"expected {FONT_SIZE}px, got {height}px"
-
-
-def test_capitals_centered(page, font):
-    """Capitals should be vertically centered within their line."""
-    if not font.processed:
-        pytest.xfail("unprocessed font: capitals not centered")
-
-    load_page(page, "OK")
-
-    metrics = page.evaluate("""() => {
-        const el = document.getElementById('target');
-        el.style.lineHeight = '2';
-        const elRect = el.getBoundingClientRect();
-
-        // Probe the actual baseline position within the element
-        const probe = document.createElement('span');
-        probe.style.display = 'inline-block';
-        probe.style.width = '0';
-        probe.style.height = '0';
-        probe.style.verticalAlign = 'baseline';
-        el.appendChild(probe);
-        const baseline = probe.getBoundingClientRect().top - elRect.top;
-        probe.remove();
-
-        const topLead = baseline - parseFloat(getComputedStyle(el).fontSize);
-        const bottomLead = elRect.height - baseline;
-        return { topLead, bottomLead };
-    }""")
-
-    assert abs(metrics["topLead"] - metrics["bottomLead"]) <= 1, (
-        f"not centered: top gap {metrics['topLead']}px, bottom gap {metrics['bottomLead']}px"
-    )
+def _failure_report(expected: bytes, actual: bytes) -> str:
+    ref_b64 = b64encode(expected).decode()
+    act_b64 = b64encode(actual).decode()
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+<style>
+* {{ margin: 0; box-sizing: border-box; }}
+body {{ font-family: system-ui; padding: 24px; background: #f5f5f5; }}
+h3 {{ margin-bottom: 8px; font-size: 13px; color: #666; }}
+.pair {{ display: flex; gap: 24px; margin-bottom: 24px; }}
+.pair img {{ border: 1px solid #ccc; background: #fff; }}
+.overlay {{ position: relative; display: inline-block; }}
+.overlay img {{ display: block; border: 1px solid #ccc; }}
+.overlay img:last-child {{ position: absolute; top: 0; left: 0; mix-blend-mode: difference; }}
+</style>
+</head>
+<body>
+<div class="pair">
+  <div><h3>Reference</h3><img src="data:image/png;base64,{ref_b64}"></div>
+  <div><h3>Actual</h3><img src="data:image/png;base64,{act_b64}"></div>
+</div>
+<h3>Overlay (difference)</h3>
+<div class="overlay">
+  <img src="data:image/png;base64,{ref_b64}">
+  <img src="data:image/png;base64,{act_b64}">
+</div>
+</body>
+</html>"""
