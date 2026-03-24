@@ -37,5 +37,8 @@ def process(font: TTFont) -> None:
     hhea.descent = 0
     hhea.lineGap = 0
 
-    # Ensure OS/2 fsSelection bit 7 (USE_TYPO_METRICS) is set
+    # Ensure OS/2 fsSelection bit 7 (USE_TYPO_METRICS) is set.
+    # Bit 7 is only defined in OS/2 version 4+.
+    if os2.version < 4:
+        os2.version = 4
     os2.fsSelection |= 1 << 7
