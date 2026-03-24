@@ -2,7 +2,7 @@ OkFonts is a tool for making font metrics more predictable, especially when used
 
 ## Basics
 
-This is a Python 3 project managed by uv.
+This is a Python 3 project managed by uv. Linted and formatted with ruff.
 
 ## How It Works
 
@@ -11,11 +11,15 @@ OkFonts relies on the fontTools library to manipulate font metrics. Given a font
 - sets both UPM and ascender to cap height
 - sets descender to 0
 
+Glyph coordinates are not scaled. Only UPM and vertical metrics are changed.
+
 With these changes, the following becomes true:
 
 - When CSS `font-size` is set to N pixels, capitals are exactly N pixels high.
 - When CSS `line-height` is set to 1, block elements with one line of text are exactly N pixels high.
 - Capitals are perfectly centered within their lines.
+
+Supports TTF and WOFF2.
 
 ## CLI
 
@@ -27,6 +31,12 @@ uvx okfonts <in> -o <out>
 
 ## Proxy
 
-Proxy can be installed as an extra. When started, it proxies requests to Google Fonts. In the resulting CSS response, every mentioned font file is downloaded and processed. CSS is returned with file paths rewritten.
+Proxy is a Starlette/uvicorn app, installed as an optional dependency (`proxy` extra). It proxies requests to Google Fonts. In the resulting CSS response, every mentioned font file is downloaded and processed. CSS is returned with font URLs rewritten.
+
+Routes are prefixed with `v1/`.
 
 Proxy respects `PORT` and `CACHE_DIR` environment variables.
+
+## Deployment
+
+Deployed to fly.io behind Cloudflare. Cloudflare caches both CSS (1 week) and fonts (1 year, immutable). Font cache is persisted on a fly.io volume.
