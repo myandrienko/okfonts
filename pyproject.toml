@@ -8,8 +8,15 @@ dependencies = [
     "fonttools>=4.62.1",
 ]
 
+[project.optional-dependencies]
+proxy = [
+    "starlette>=1.0.0",
+    "uvicorn>=0.42.0",
+]
+
 [project.scripts]
 okfonts = "okfonts.cli:main"
+okfonts-proxy = "okfonts.proxy:main"
 
 [build-system]
 requires = ["uv_build>=0.7.2,<1"]
